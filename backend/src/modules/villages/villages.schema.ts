@@ -27,3 +27,28 @@ export const listVillagesQuery = z.object({
 
 // TypeScript type generated from the schema, so the two can never drift apart.
 export type ListVillagesQuery = z.infer<typeof listVillagesQuery>;
+
+// The :id in /api/villages/:id
+export const idParams = z.object({
+  id: z.coerce.number().int().positive(),
+});
+
+// strictObject rejects unknown fields, so a client cannot sneak in "stage" or "code" here.
+export const createVillageBody = z.strictObject({
+  name: z.string().trim().min(1).max(100),
+  tehsil: z.string().trim().min(1).max(100),
+  district: z.string().trim().min(1).max(100),
+  areaSqKm: z.number().positive().max(999999.99).nullable().optional(),
+});
+export type CreateVillageBody = z.infer<typeof createVillageBody>;
+
+export const updateVillageBody = createVillageBody
+  .partial()
+  .refine((body) => Object.keys(body).length > 0, { message: 'Provide at least one field to update' });
+export type UpdateVillageBody = z.infer<typeof updateVillageBody>;
+
+export const changeStageBody = z.strictObject({
+  toStage: z.enum(STAGES),
+  note: z.string().trim().min(1).max(1000).optional(),
+});
+export type ChangeStageBody = z.infer<typeof changeStageBody>;

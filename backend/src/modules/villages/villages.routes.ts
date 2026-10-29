@@ -5,3 +5,8 @@ import * as controller from './villages.controller';
 export const villagesRouter = Router();
 
 villagesRouter.get('/', controller.listVillages);
+villagesRouter.post('/', controller.createVillage);
+villagesRouter.get('/:id', controller.getVillage);
+villagesRouter.patch('/:id', controller.updateVillage);
+villagesRouter.delete('/:id', controller.deleteVillage);
+villagesRouter.patch('/:id/stage', controller.changeStage);
