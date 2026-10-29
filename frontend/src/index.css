@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+
+/* Design tokens. Tailwind turns these into utility classes (for example "font-sans"). */
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
