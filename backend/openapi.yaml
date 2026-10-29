@@ -1,0 +1,433 @@
+openapi: 3.0.3
+info:
+  title: SurveyOps Lite API
+  version: 1.0.0
+  description: |
+    REST API for the Boundary Digitization Tracker, a portfolio project that tracks fictional villages
+    through a five-step digitization workflow.
+
+    All data is synthetic. This is an independent project inspired by an internship;
+    it is not affiliated with Survey of India or the NAKSHA program.
+
+    **Authentication:** not implemented yet. All endpoints are currently public (planned as a future enhancement).
+servers:
+  - url: http://localhost:4001
+    description: Local development
+tags:
+  - name: System
+  - name: Dashboard
+  - name: Villages
+  - name: Stage workflow
+
+paths:
+  /api/health:
+    get:
+      tags: [System]
+      summary: Check that the API and database are reachable
+      responses:
+        '200':
+          description: API and database are up
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: ok }
+                  database: { type: string, example: connected }
+        '503':
+          description: Database unreachable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, example: error }
+                  database: { type: string, example: unreachable }
+
+  /api/dashboard/stats:
+    get:
+      tags: [Dashboard]
+      summary: Summary numbers for the dashboard
+      description: All values are computed from MySQL on each request.
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DashboardStats'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/villages:
+    get:
+      tags: [Villages]
+      summary: List villages
+      description: Supports search, filters, sorting and pagination.
+      parameters:
+        - name: search
+          in: query
+          description: Matches village name or code (partial, case-insensitive)
+          schema: { type: string, maxLength: 100 }
+        - name: tehsil
+          in: query
+          schema: { type: string, maxLength: 100 }
+        - name: district
+          in: query
+          schema: { type: string, maxLength: 100 }
+        - name: stage
+          in: query
+          schema: { $ref: '#/components/schemas/Stage' }
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [name, code, stage, updated_at]
+            default: updated_at
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+      responses:
+        '200':
+          description: A page of villages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/Village' }
+                  meta: { $ref: '#/components/schemas/PageMeta' }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      tags: [Villages]
+      summary: Create a village
+      description: The code (for example VLG-0023) is generated. New villages start at `not_started`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateVillage' }
+            example:
+              name: Zarkhola
+              tehsil: Tehsil Tarapani
+              district: Kedarwal
+              areaSqKm: 3.5
+      responses:
+        '201':
+          description: Created. The Location header holds the new village URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Village' }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/villages/{id}:
+    parameters:
+      - $ref: '#/components/parameters/VillageId'
+    get:
+      tags: [Villages]
+      summary: Get one village with its stage history
+      responses:
+        '200':
+          description: The village, newest history entry first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/VillageDetail' }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    patch:
+      tags: [Villages]
+      summary: Edit village details
+      description: |
+        Send only the fields to change. The stage cannot be changed here;
+        use `PATCH /api/villages/{id}/stage`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/UpdateVillage' }
+            example:
+              name: Zarkhola Khas
+      responses:
+        '200':
+          description: The updated village
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Village' }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    delete:
+      tags: [Villages]
+      summary: Delete a village and its history
+      responses:
+        '204':
+          description: Deleted. No response body.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /api/villages/{id}/stage:
+    parameters:
+      - $ref: '#/components/parameters/VillageId'
+    patch:
+      tags: [Stage workflow]
+      summary: Move a village to another stage
+      description: |
+        Rules:
+        - Forward moves must go exactly one stage at a time.
+        - Moving backwards (rework) is allowed but requires a `note`.
+        - Moving to the current stage is not allowed.
+
+        The stage update and the history entry are saved in one database transaction.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangeStage' }
+            examples:
+              forward:
+                summary: Move forward one stage
+                value: { toStage: georeferenced }
+              backward:
+                summary: Move backwards (note required)
+                value: { toStage: not_started, note: 'Ground control points were misaligned; redoing' }
+      responses:
+        '200':
+          description: The village at its new stage
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { $ref: '#/components/schemas/Village' }
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          description: The move breaks a workflow rule
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              examples:
+                skip:
+                  value:
+                    error:
+                      code: INVALID_TRANSITION
+                      message: Cannot skip from "not_started" to "parcels_matched". The next stage is "georeferenced"
+                noteRequired:
+                  value:
+                    error:
+                      code: NOTE_REQUIRED
+                      message: A note explaining the rework is required when moving a village backwards
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+components:
+  parameters:
+    VillageId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1 }
+      example: 7
+
+  responses:
+    ValidationError:
+      description: The request failed validation
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: Invalid request
+              details:
+                - field: pageSize
+                  message: 'Too big: expected number to be <=100'
+    NotFound:
+      description: No village with that id
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: NOT_FOUND
+              message: Village 99999 not found
+    ServerError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example:
+            error:
+              code: INTERNAL_ERROR
+              message: Something went wrong
+
+  schemas:
+    Stage:
+      type: string
+      description: Workflow stage, in order
+      enum:
+        - not_started
+        - georeferenced
+        - parcels_matched
+        - boundary_digitized
+        - stored_in_geodatabase
+        - tehsil_merged
+
+    Village:
+      type: object
+      properties:
+        id: { type: integer, example: 7 }
+        code: { type: string, example: VLG-0007 }
+        name: { type: string, example: Gadhera }
+        tehsil: { type: string, example: Tehsil Pindwari }
+        district: { type: string, example: Himora }
+        areaSqKm: { type: number, nullable: true, example: 4.7 }
+        stage: { $ref: '#/components/schemas/Stage' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    StageNote:
+      type: object
+      properties:
+        id: { type: integer }
+        fromStage: { $ref: '#/components/schemas/Stage' }
+        toStage: { $ref: '#/components/schemas/Stage' }
+        note: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    VillageDetail:
+      allOf:
+        - $ref: '#/components/schemas/Village'
+        - type: object
+          properties:
+            history:
+              type: array
+              items: { $ref: '#/components/schemas/StageNote' }
+
+    CreateVillage:
+      type: object
+      required: [name, tehsil, district]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        tehsil: { type: string, minLength: 1, maxLength: 100 }
+        district: { type: string, minLength: 1, maxLength: 100 }
+        areaSqKm: { type: number, nullable: true, minimum: 0, exclusiveMinimum: true, maximum: 999999.99 }
+
+    UpdateVillage:
+      type: object
+      minProperties: 1
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        tehsil: { type: string, minLength: 1, maxLength: 100 }
+        district: { type: string, minLength: 1, maxLength: 100 }
+        areaSqKm: { type: number, nullable: true, minimum: 0, exclusiveMinimum: true, maximum: 999999.99 }
+
+    ChangeStage:
+      type: object
+      required: [toStage]
+      additionalProperties: false
+      properties:
+        toStage: { $ref: '#/components/schemas/Stage' }
+        note: { type: string, minLength: 1, maxLength: 1000 }
+
+    PageMeta:
+      type: object
+      properties:
+        page: { type: integer, example: 1 }
+        pageSize: { type: integer, example: 10 }
+        total: { type: integer, example: 22 }
+        totalPages: { type: integer, example: 3 }
+
+    DashboardStats:
+      type: object
+      properties:
+        totals:
+          type: object
+          properties:
+            villages: { type: integer }
+            notStarted: { type: integer }
+            inProgress: { type: integer, description: 'Villages between the first and last stage' }
+            completed: { type: integer, description: 'Villages at tehsil_merged' }
+            completionPercent: { type: number, description: 'Percent of villages completed (one decimal place)' }
+        byStage:
+          type: array
+          description: Always contains all six stages in workflow order
+          items:
+            type: object
+            properties:
+              stage: { $ref: '#/components/schemas/Stage' }
+              count: { type: integer }
+        byTehsil:
+          type: array
+          items:
+            type: object
+            properties:
+              tehsil: { type: string }
+              total: { type: integer }
+              completed: { type: integer }
+        recentlyUpdated:
+          type: array
+          description: The five most recently updated villages
+          items: { $ref: '#/components/schemas/Village' }
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string, example: VALIDATION_ERROR }
+            message: { type: string }
+            details:
+              type: array
+              items:
+                type: object
+                properties:
+                  field: { type: string }
+                  message: { type: string }
