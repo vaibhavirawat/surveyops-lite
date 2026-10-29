@@ -38,6 +38,10 @@ export async function listVillages(query: ListVillagesQuery) {
   };
 }
 
+export function getFilterOptions() {
+  return repo.findFilterOptions();
+}
+
 export async function getVillage(id: number) {
   const village = await repo.findById(id);
   if (!village) throw new AppError(404, 'NOT_FOUND', `Village ${id} not found`);

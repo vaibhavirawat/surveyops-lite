@@ -6,6 +6,8 @@ export const villagesRouter = Router();
 
 villagesRouter.get('/', controller.listVillages);
 villagesRouter.post('/', controller.createVillage);
+// Fixed paths must be registered BEFORE '/:id', otherwise Express would read "filter-options" as an id.
+villagesRouter.get('/filter-options', controller.getFilterOptions);
 villagesRouter.get('/:id', controller.getVillage);
 villagesRouter.patch('/:id', controller.updateVillage);
 villagesRouter.delete('/:id', controller.deleteVillage);

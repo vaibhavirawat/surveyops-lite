@@ -79,6 +79,17 @@ describe('GET /api/villages', () => {
   });
 });
 
+describe('GET /api/villages/filter-options', () => {
+  it('returns the distinct tehsils and districts, sorted', async () => {
+    const res = await request(app).get('/api/villages/filter-options');
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({
+      tehsils: ['Tehsil One', 'Tehsil Three', 'Tehsil Two'],
+      districts: ['X', 'Y'],
+    });
+  });
+});
+
 describe('GET /api/villages/:id', () => {
   it('returns the village with its history', async () => {
     const res = await request(app).get('/api/villages/2');

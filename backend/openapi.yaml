@@ -143,6 +143,33 @@ paths:
         '500':
           $ref: '#/components/responses/ServerError'
 
+  /api/villages/filter-options:
+    get:
+      tags: [Villages]
+      summary: List the tehsil and district names in use
+      description: Used to fill filter dropdowns. Names are sorted alphabetically.
+      responses:
+        '200':
+          description: Distinct names
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      tehsils:
+                        type: array
+                        items: { type: string }
+                        example: ['Tehsil Pindwari', 'Tehsil Ranigad']
+                      districts:
+                        type: array
+                        items: { type: string }
+                        example: ['Himora', 'Kedarwal']
+        '500':
+          $ref: '#/components/responses/ServerError'
+
   /api/villages/{id}:
     parameters:
       - $ref: '#/components/parameters/VillageId'

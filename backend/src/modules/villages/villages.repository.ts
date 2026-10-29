@@ -97,6 +97,18 @@ export async function findVillages(query: ListVillagesQuery) {
   return { rows, total: Number(countRows[0].total) };
 }
 
+// The distinct tehsil and district names that exist, used to fill filter dropdowns in the UI.
+export async function findFilterOptions() {
+  const [[tehsils], [districts]] = await Promise.all([
+    pool.query<RowDataPacket[]>('SELECT DISTINCT tehsil FROM villages ORDER BY tehsil'),
+    pool.query<RowDataPacket[]>('SELECT DISTINCT district FROM villages ORDER BY district'),
+  ]);
+  return {
+    tehsils: tehsils.map((row) => row.tehsil as string),
+    districts: districts.map((row) => row.district as string),
+  };
+}
+
 export async function findById(id: number, db: Db = pool): Promise<Village | null> {
   const [rows] = await db.query<VillageRow[]>(`SELECT ${VILLAGE_COLUMNS} FROM villages WHERE id = ?`, [id]);
   return rows[0] ?? null;

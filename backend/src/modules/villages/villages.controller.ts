@@ -17,6 +17,10 @@ export async function listVillages(req: Request, res: Response) {
   res.json(await villagesService.listVillages(query));
 }
 
+export async function getFilterOptions(_req: Request, res: Response) {
+  res.json({ data: await villagesService.getFilterOptions() });
+}
+
 export async function getVillage(req: Request, res: Response) {
   const { id } = idParams.parse(req.params);
   res.json({ data: await villagesService.getVillage(id) });

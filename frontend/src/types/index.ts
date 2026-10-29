@@ -24,6 +24,28 @@ export interface Village {
   updatedAt: string
 }
 
+export interface StageNote {
+  id: number
+  fromStage: Stage
+  toStage: Stage
+  note: string | null
+  createdAt: string
+}
+
+export interface VillageDetail extends Village {
+  history: StageNote[] // newest first
+}
+
+export interface PageMeta {
+  page: number
+  pageSize: number
+  total: number
+  totalPages: number
+}
+
+export type SortField = 'updated_at' | 'name' | 'code' | 'stage'
+export type SortOrder = 'asc' | 'desc'
+
 export interface DashboardStats {
   totals: {
     villages: number
