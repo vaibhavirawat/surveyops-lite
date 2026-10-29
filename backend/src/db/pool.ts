@@ -10,4 +10,5 @@ export const pool = mysql.createPool({
   password: env.DB_PASSWORD,
   database: env.DB_NAME,
   connectionLimit: 10,
+  decimalNumbers: true, // return DECIMAL columns as numbers instead of strings
 });

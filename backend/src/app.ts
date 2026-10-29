@@ -2,6 +2,8 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import { pool } from './db/pool';
+import { villagesRouter } from './modules/villages/villages.routes';
+import { errorHandler, notFound } from './middleware/errorHandler';
 
 // Building the app in its own file (separate from server.ts) lets tests
 // import it without actually opening a network port.
@@ -19,3 +21,9 @@ app.get('/api/health', async (_req, res) => {
     res.status(503).json({ status: 'error', database: 'unreachable' });
   }
 });
+
+app.use('/api/villages', villagesRouter);
+
+// Order matters: these two must come after every route.
+app.use(notFound);
+app.use(errorHandler);
