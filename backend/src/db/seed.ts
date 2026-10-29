@@ -1,4 +1,5 @@
 import { pool } from './pool';
+import { env } from '../config/env';
 import { logger } from '../config/logger';
 
 // All names below are FICTIONAL sample data. They do not describe real villages or records.
@@ -49,6 +50,14 @@ const villages: SeedVillage[] = [
 ];
 
 async function main() {
+  // Seeding DELETES every village first. On a live database that must be a deliberate decision, never an accident.
+  if (env.NODE_ENV === 'production' && process.env.ALLOW_SEED !== 'true') {
+    logger.error('Refusing to seed in production. This deletes all villages. Set ALLOW_SEED=true if you really mean it.');
+    process.exitCode = 1;
+    await pool.end();
+    return;
+  }
+
   // A transaction groups many statements into one all-or-nothing unit:
   // if any insert fails, ROLLBACK undoes everything, so the table is never half-seeded.
   const conn = await pool.getConnection();

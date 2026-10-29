@@ -6,7 +6,8 @@ import { logger } from '../config/logger';
 // Runs when no route matched the request.
 export function notFound(req: Request, res: Response) {
   res.status(404).json({
-    error: { code: 'NOT_FOUND', message: `Route ${req.method} ${req.path} not found` },
+    // originalUrl keeps the full address even when this runs under app.use('/api', ...); drop the query string.
+    error: { code: 'NOT_FOUND', message: `Route ${req.method} ${req.originalUrl.split('?')[0]} not found` },
   });
 }
 

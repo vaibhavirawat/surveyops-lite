@@ -11,6 +11,8 @@ info:
 
     **Authentication:** not implemented yet. All endpoints are currently public (planned as a future enhancement).
 servers:
+  - url: /
+    description: This server (the address serving these docs)
   - url: http://localhost:4001
     description: Local development
 tags:

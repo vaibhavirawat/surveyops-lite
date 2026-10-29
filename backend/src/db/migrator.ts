@@ -1,8 +1,8 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import mysql, { RowDataPacket } from 'mysql2/promise';
-import { env } from '../config/env';
 import { logger } from '../config/logger';
+import { connectionOptions } from './options';
 
 // Applies every .sql file in /migrations that has not been applied yet, in filename order.
 // The table "schema_migrations" remembers which files already ran, so running this twice is safe.
@@ -11,10 +11,7 @@ export async function runMigrations(options: { database: string }) {
   // multipleStatements lets one .sql file contain several CREATE TABLE statements.
   // It is only enabled for migrations, never for the web server's pool.
   const conn = await mysql.createConnection({
-    host: env.DB_HOST,
-    port: env.DB_PORT,
-    user: env.DB_USER,
-    password: env.DB_PASSWORD,
+    ...connectionOptions,
     database: options.database,
     multipleStatements: true,
   });
